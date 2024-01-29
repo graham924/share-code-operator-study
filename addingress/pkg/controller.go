@@ -67,7 +67,7 @@ func NewController(clientset *kubernetes.Clientset, serviceInformer informercore
 
 // 添加service时触发
 func (c *controller) addService(obj interface{}) {
-	// 将 待添加service 的 key 加入 workqueue
+	// 将 添加service 的 key 加入 workqueue
 	c.enqueue(obj)
 }
 
@@ -78,16 +78,20 @@ func (c *controller) updateService(oldObj interface{}, newObj interface{}) {
 		return
 	}
 	// todo 比较annotation
+	// 将 修改service 的 key 加入 workqueue
 	c.enqueue(newObj)
 }
 
 // 删除ingress时触发
 func (c *controller) deleteIngress(obj interface{}) {
+	// 将对象转成ingress，并获取到它的 ownerReference
 	ingress := obj.(*netv1.Ingress)
 	ownerReference := metav1.GetControllerOf(ingress)
+	// 如果ingress的 ownerReference 没有绑定到service，则无需处理
 	if ownerReference == nil || ownerReference.Kind != "Service" {
 		return
 	}
+	// 如果ingress的 ownerReference 已经绑定到service，则需要处理
 	c.enqueue(obj)
 }
 
