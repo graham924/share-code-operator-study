@@ -6,19 +6,29 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+type DeploymentTemplate struct {
+	metav1.ObjectMeta `json:"metadata,omitempty" protobuf:"bytes,1,opt,name=metadata"`
+	Spec              appsv1.DeploymentSpec `json:"spec,omitempty" protobuf:"bytes,2,opt,name=spec"`
+}
+
+type ServiceTemplate struct {
+	metav1.ObjectMeta `json:"metadata,omitempty" protobuf:"bytes,1,opt,name=metadata"`
+	Spec              corev1.ServiceSpec `json:"spec,omitempty" protobuf:"bytes,2,opt,name=spec"`
+}
+
 // AppSpec defines the desired state of App
 type AppSpec struct {
 	// INSERT ADDITIONAL SPEC FIELDS -- desired state of cluster
-	DeploymentTemplate appsv1.DeploymentSpec `json:"deploymentTemplate"`
-	ServiceTemplate    corev1.ServiceSpec    `json:"serviceTemplate"`
+	DeploymentTemplate DeploymentTemplate `json:"deploymentTemplate,omitempty"`
+	ServiceTemplate    ServiceTemplate    `json:"serviceTemplate,omitempty"`
 }
 
 // AppStatus defines the observed state of App.
 // It should always be reconstructable from the state of the cluster and/or outside world.
 type AppStatus struct {
 	// INSERT ADDITIONAL STATUS FIELDS -- observed state of cluster
-	DeploymentStatus appsv1.DeploymentStatus `json:"deploymentStatus"`
-	ServiceStatus    corev1.ServiceStatus    `json:"serviceStatus"`
+	DeploymentStatus appsv1.DeploymentStatus `json:"deploymentStatus,omitempty"`
+	ServiceStatus    corev1.ServiceStatus    `json:"serviceStatus,omitempty"`
 }
 
 // +genclient
