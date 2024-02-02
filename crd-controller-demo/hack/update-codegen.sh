@@ -23,7 +23,7 @@ set -o pipefail
 
 # 对generate-groups.sh 脚本的调用
 ../vendor/k8s.io/code-generator/generate-groups.sh \
-  "client,informer,lister" \
+  "deepcopy,client,informer,lister" \
   crd-controller-demo/pkg/generated \
   crd-controller-demo/pkg/apis \
   appcontroller:v1 \

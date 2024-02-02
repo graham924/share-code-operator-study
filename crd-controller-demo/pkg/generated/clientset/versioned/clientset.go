@@ -37,7 +37,8 @@ type Interface interface {
 	AppcontrollerV1() appcontrollerv1.AppcontrollerV1Interface
 }
 
-// Clientset contains the clients for groups.
+// Clientset contains the clients for groups. Each group has exactly one
+// version included in a Clientset.
 type Clientset struct {
 	*discovery.DiscoveryClient
 	appcontrollerV1 *appcontrollerv1.AppcontrollerV1Client
