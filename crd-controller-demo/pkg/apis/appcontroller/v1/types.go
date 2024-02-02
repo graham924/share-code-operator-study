@@ -18,12 +18,16 @@ type App struct {
 	Status AppStatus `json:"status,omitempty"`
 }
 
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+
 // AppSpec defines the desired state of App
 type AppSpec struct {
 	// INSERT ADDITIONAL SPEC FIELDS -- desired state of cluster
 	DeploymentTemplate DeploymentTemplate `json:"deploymentTemplate,omitempty"`
 	ServiceTemplate    ServiceTemplate    `json:"serviceTemplate,omitempty"`
 }
+
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
 // AppStatus defines the observed state of App.
 // It should always be reconstructable from the state of the cluster and/or outside world.
