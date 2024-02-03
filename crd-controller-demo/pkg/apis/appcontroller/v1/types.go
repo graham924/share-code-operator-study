@@ -1,6 +1,8 @@
 package v1
 
 import (
+	appsv1 "k8s.io/api/apps/v1"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -35,8 +37,8 @@ type ServiceTemplate struct {
 // AppStatus defines the observed state of App.
 // It should always be reconstructable from the state of the cluster and/or outside world.
 type AppStatus struct {
-	//DeploymentStatus *appsv1.DeploymentStatus `json:"deploymentStatus,omitempty"`
-	//ServiceStatus    *corev1.ServiceStatus    `json:"serviceStatus,omitempty"`
+	DeploymentStatus *appsv1.DeploymentStatus `json:"deploymentStatus,omitempty"`
+	ServiceStatus    *corev1.ServiceStatus    `json:"serviceStatus,omitempty"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object

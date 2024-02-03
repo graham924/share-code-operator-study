@@ -24,7 +24,6 @@ import (
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/client-go/util/workqueue"
-	"k8s.io/klog/v2"
 	"reflect"
 	"time"
 )
@@ -216,18 +215,18 @@ func (c *Controller) syncApp(key string) error {
 		}
 		return err
 	}
-	deploymentTemplate := app.Spec.DeploymentTemplate
+	deploymentTemplate := app.Spec.DeploymentSpec
 	if deploymentTemplate.Name != "" {
-		deploy, err := c.deploymentsLister.Deployments(deploymentTemplate.Namespace).Get(deploymentTemplate.Name)
+		deploy, err := c.deploymentsLister.Deployments(namespace).Get(deploymentTemplate.Name)
 		if err != nil {
 			if errors.IsNotFound(err) {
 				klog.V(4).Info("starting to create deployment [%s] in namespace [%s]", deploy.Name, deploy.Namespace)
 				deploy = newDeployment(deploymentTemplate, app)
-				_, err := c.kubeClientset.AppsV1().Deployments(deploymentTemplate.Namespace).Create(context.TODO(), deploy, metav1.CreateOptions{})
+				_, err := c.kubeClientset.AppsV1().Deployments(namespace).Create(context.TODO(), deploy, metav1.CreateOptions{})
 				if err != nil {
 					return fmt.Errorf("failed to create deployment [%s] in namespace [%s], error: [%v]", deploy.Name, deploy.Namespace, err)
 				}
-				deploy, _ = c.deploymentsLister.Deployments(deploymentTemplate.Namespace).Get(deploymentTemplate.Name)
+				deploy, _ = c.deploymentsLister.Deployments(namespace).Get(deploymentTemplate.Name)
 			} else {
 				return fmt.Errorf("failed to get deployment [%s] in namespace [%s], error: [%v]", deploy.Name, deploy.Namespace, err)
 			}
@@ -238,21 +237,21 @@ func (c *Controller) syncApp(key string) error {
 			return fmt.Errorf("%s", msg)
 		}
 		// update deploy status
-		app.Status.DeploymentStatus = deploy.Status
+		app.Status.DeploymentStatus = &deploy.Status
 	}
 
-	serviceTemplate := app.Spec.ServiceTemplate
+	serviceTemplate := app.Spec.ServiceSpec
 	if serviceTemplate.Name != "" {
-		service, err := c.servicesLister.Services(serviceTemplate.Namespace).Get(serviceTemplate.Name)
+		service, err := c.servicesLister.Services(namespace).Get(serviceTemplate.Name)
 		if err != nil {
 			if errors.IsNotFound(err) {
 				klog.V(4).Info("starting to create deployment [%s] in namespace [%s]", service.Name, service.Namespace)
 				service = newService(serviceTemplate, app)
-				_, err := c.kubeClientset.CoreV1().Services(serviceTemplate.Namespace).Create(context.TODO(), service, metav1.CreateOptions{})
+				_, err := c.kubeClientset.CoreV1().Services(namespace).Create(context.TODO(), service, metav1.CreateOptions{})
 				if err != nil {
 					return fmt.Errorf("failed to create deployment [%s] in namespace [%s], error: [%v]", service.Name, service.Namespace, err)
 				}
-				service, _ = c.servicesLister.Services(serviceTemplate.Namespace).Get(serviceTemplate.Name)
+				service, _ = c.servicesLister.Services(namespace).Get(serviceTemplate.Name)
 			} else {
 				return fmt.Errorf("failed to get deployment [%s] in namespace [%s], error: [%v]", service.Name, service.Namespace, err)
 			}
@@ -263,7 +262,7 @@ func (c *Controller) syncApp(key string) error {
 			return fmt.Errorf("%s", msg)
 		}
 		// update service status
-		app.Status.ServiceStatus = service.Status
+		app.Status.ServiceStatus = &service.Status
 	}
 
 	_, err = c.appClientset.AppcontrollerV1().Apps(namespace).Update(context.TODO(), app, metav1.UpdateOptions{})
@@ -277,31 +276,48 @@ func (c *Controller) syncApp(key string) error {
 }
 
 func newDeployment(template appcontrollerv1.DeploymentTemplate, app *appcontrollerv1.App) *appsv1.Deployment {
-	template.OwnerReferences = []metav1.OwnerReference{
-		*metav1.NewControllerRef(app, appcontrollerv1.SchemeGroupVersion.WithKind("App")),
-	}
-	return &appsv1.Deployment{
+	d := &appsv1.Deployment{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "Deployment",
 			APIVersion: "apps/v1",
 		},
-		ObjectMeta: template.ObjectMeta,
-		Spec:       template.Spec,
+		ObjectMeta: metav1.ObjectMeta{
+			Name: template.Name,
+		},
+		Spec: appsv1.DeploymentSpec{
+			Replicas: &template.Replicas,
+			Template: corev1.PodTemplateSpec{
+				Spec: corev1.PodSpec{
+					Containers: []corev1.Container{
+						{
+							Image: template.Image,
+						},
+					},
+				},
+			},
+		},
 	}
+	d.OwnerReferences = []metav1.OwnerReference{
+		*metav1.NewControllerRef(app, appcontrollerv1.SchemeGroupVersion.WithKind("App")),
+	}
+	return d
 }
 
 func newService(template appcontrollerv1.ServiceTemplate, app *appcontrollerv1.App) *corev1.Service {
-	template.OwnerReferences = []metav1.OwnerReference{
-		*metav1.NewControllerRef(app, appcontrollerv1.SchemeGroupVersion.WithKind("App")),
-	}
-	return &corev1.Service{
+	s := &corev1.Service{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "Service",
 			APIVersion: "v1",
 		},
-		ObjectMeta: template.ObjectMeta,
-		Spec:       template.Spec,
+		ObjectMeta: metav1.ObjectMeta{
+			Name: template.Name,
+		},
 	}
+
+	s.OwnerReferences = []metav1.OwnerReference{
+		*metav1.NewControllerRef(app, appcontrollerv1.SchemeGroupVersion.WithKind("App")),
+	}
+	return s
 }
 
 func (c *Controller) handleError(key string, err error) {
