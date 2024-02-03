@@ -1,0 +1,12 @@
+apiVersion: appcontroller.k8s.io/v1
+kind: App
+metadata:
+  name: test-app
+  namespace: tcs
+spec:
+  deploymentTemplate:
+    name: app-deploy
+    image: nginx
+    replicas: 2
+  serviceTemplate:
+    name: app-service

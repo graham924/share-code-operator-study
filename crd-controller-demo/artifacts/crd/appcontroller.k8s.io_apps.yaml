@@ -4,6 +4,7 @@ kind: CustomResourceDefinition
 metadata:
   annotations:
     controller-gen.kubebuilder.io/version: (devel)
+    api-approved.kubernetes.io: "https://github.com/kubernetes/kubernetes/pull/78458"
   creationTimestamp: null
   name: apps.appcontroller.k8s.io
 spec:
