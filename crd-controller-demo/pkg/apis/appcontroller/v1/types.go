@@ -1,8 +1,6 @@
 package v1
 
 import (
-	appsv1 "k8s.io/api/apps/v1"
-	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -20,8 +18,18 @@ type App struct {
 
 // AppSpec defines the desired state of App
 type AppSpec struct {
-	DeploymentTemplate *appsv1.Deployment `json:"deploymentTemplate"`
-	ServiceTemplate    *corev1.Service    `json:"serviceTemplate"`
+	DeploymentSpec DeploymentTemplate `json:"deploymentTemplate,omitempty"`
+	ServiceSpec    ServiceTemplate    `json:"serviceTemplate,omitempty"`
+}
+
+type DeploymentTemplate struct {
+	Name     string `json:"name"`
+	Image    string `json:"image"`
+	Replicas int32  `json:"replicas"`
+}
+
+type ServiceTemplate struct {
+	Name string `json:"name"`
 }
 
 // AppStatus defines the observed state of App.
