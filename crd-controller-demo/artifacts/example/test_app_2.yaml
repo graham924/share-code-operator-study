@@ -1,0 +1,12 @@
+apiVersion: appcontroller.k8s.io/v1
+kind: App
+metadata:
+  name: test-app-2
+  namespace: tcs
+spec:
+  deploymentTemplate:
+    name: app-deploy-test
+    image: tomcat
+    replicas: 3
+  serviceTemplate:
+    name: app-service-test

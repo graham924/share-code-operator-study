@@ -180,13 +180,17 @@ func (c *Controller) worker() {
 }
 
 func (c *Controller) processNextWorkItem() bool {
+	// 从 workqueue 中获取一个item
 	item, shutdown := c.workqueue.Get()
+	// 如果队列已经被回收，返回false
 	if shutdown {
 		return false
 	}
 
+	// 最终将这个item标记为已处理
 	defer c.workqueue.Done(item)
 
+	// 将item转成key
 	key, ok := item.(string)
 	if !ok {
 		klog.Warningf("failed convert item [%s] to string", item)
@@ -194,21 +198,24 @@ func (c *Controller) processNextWorkItem() bool {
 		return true
 	}
 
+	// 对key这个App，进行具体的调谐。这里面是核心的调谐逻辑
 	if err := c.syncApp(key); err != nil {
 		klog.Errorf("failed to syncApp [%s], error: [%s]", key, err.Error())
 		c.handleError(key, err)
 	}
 
 	return true
-
 }
 
+// syncApp 对App资源的调谐核心逻辑
 func (c *Controller) syncApp(key string) error {
+	// 将key拆分成namespace、name
 	namespace, name, err := cache.SplitMetaNamespaceKey(key)
 	if err != nil {
 		return err
 	}
 
+	// 从informer缓存中，获取到key对应的app对象
 	app, err := c.appsLister.Apps(namespace).Get(name)
 	if err != nil {
 		if errors.IsNotFound(err) {
@@ -216,22 +223,30 @@ func (c *Controller) syncApp(key string) error {
 		}
 		return err
 	}
+
+	// 取出 app 对象 的 deploymentSpec 部分
 	deploymentTemplate := app.Spec.DeploymentSpec
+	// 如果 app 的 deploymentTemplate 不为空
 	if deploymentTemplate.Name != "" {
+		// 尝试从缓存获取 对应的 deployment
 		deploy, err := c.deploymentsLister.Deployments(namespace).Get(deploymentTemplate.Name)
 		if err != nil {
+			// 如果没找到
 			if errors.IsNotFound(err) {
-				klog.V(4).Info("starting to create deployment [%s] in namespace [%s]", deploy.Name, deploy.Namespace)
+				klog.V(4).Info("starting to create deployment [%s] in namespace [%s]", deploymentTemplate.Name, namespace)
+				// 创建一个deployment对象，然后使用 kubeClientset，与apiserver交互，创建deployment
 				deploy = newDeployment(deploymentTemplate, app)
 				_, err := c.kubeClientset.AppsV1().Deployments(namespace).Create(context.TODO(), deploy, metav1.CreateOptions{})
 				if err != nil {
-					return fmt.Errorf("failed to create deployment [%s] in namespace [%s], error: [%v]", deploy.Name, deploy.Namespace, err)
+					return fmt.Errorf("failed to create deployment [%s] in namespace [%s], error: [%v]", deploymentTemplate.Name, namespace, err)
 				}
-				deploy, _ = c.deploymentsLister.Deployments(namespace).Get(deploymentTemplate.Name)
+				// 创建完成后，从apiserver中，获取最新的deployment，因为下面要使用它的status.【这里不能从informer缓存获取，因为缓存里暂时未同步新创建的deployment】
+				deploy, _ = c.kubeClientset.AppsV1().Deployments(namespace).Get(context.TODO(), deploymentTemplate.Name, metav1.GetOptions{})
 			} else {
 				return fmt.Errorf("failed to get deployment [%s] in namespace [%s], error: [%v]", deploy.Name, deploy.Namespace, err)
 			}
 		}
+		// 如果获取到的 deployment，并非 app 所控制，报错
 		if !metav1.IsControlledBy(deploy, app) {
 			msg := fmt.Sprintf(utils.MessageResourceExists, deploy.Name)
 			c.recorder.Event(app, corev1.EventTypeWarning, utils.ErrResourceExists, msg)
@@ -241,22 +256,29 @@ func (c *Controller) syncApp(key string) error {
 		app.Status.DeploymentStatus = &deploy.Status
 	}
 
+	// 取出 app 对象 的 deploymentSpec 部分
 	serviceTemplate := app.Spec.ServiceSpec
+	// 如果 app 的 serviceTemplate 不为空
 	if serviceTemplate.Name != "" {
+		// 尝试从缓存获取 对应的 service
 		service, err := c.servicesLister.Services(namespace).Get(serviceTemplate.Name)
 		if err != nil {
+			// 如果没找到
 			if errors.IsNotFound(err) {
-				klog.V(4).Info("starting to create deployment [%s] in namespace [%s]", service.Name, service.Namespace)
+				klog.V(4).Info("starting to create service [%s] in namespace [%s]", serviceTemplate.Name, namespace)
+				// 创建一个service对象，然后使用 kubeClientset，与apiserver交互，创建service
 				service = newService(serviceTemplate, app)
 				_, err := c.kubeClientset.CoreV1().Services(namespace).Create(context.TODO(), service, metav1.CreateOptions{})
 				if err != nil {
-					return fmt.Errorf("failed to create deployment [%s] in namespace [%s], error: [%v]", service.Name, service.Namespace, err)
+					return fmt.Errorf("failed to create service [%s] in namespace [%s], error: [%v]", serviceTemplate.Name, namespace, err)
 				}
-				service, _ = c.servicesLister.Services(namespace).Get(serviceTemplate.Name)
+				// 创建完成后，从apiserver中，获取最新的service，因为下面要使用它的status.【这里不能从informer缓存获取，因为缓存里暂时未同步新创建的service】
+				service, _ = c.kubeClientset.CoreV1().Services(namespace).Get(context.TODO(), serviceTemplate.Name, metav1.GetOptions{})
 			} else {
-				return fmt.Errorf("failed to get deployment [%s] in namespace [%s], error: [%v]", service.Name, service.Namespace, err)
+				return fmt.Errorf("failed to get service [%s] in namespace [%s], error: [%v]", service.Name, service.Namespace, err)
 			}
 		}
+		// 如果获取到的 service，并非 app 所控制，报错
 		if !metav1.IsControlledBy(service, app) {
 			msg := fmt.Sprintf(utils.MessageResourceExists, service.Name)
 			c.recorder.Event(app, corev1.EventTypeWarning, utils.ErrResourceExists, msg)
@@ -266,16 +288,19 @@ func (c *Controller) syncApp(key string) error {
 		app.Status.ServiceStatus = &service.Status
 	}
 
+	// 处理完 deploymentSpec、serviceSpec，将设置好的AppStatus更新到环境中去
 	_, err = c.appClientset.AppcontrollerV1().Apps(namespace).Update(context.TODO(), app, metav1.UpdateOptions{})
 	if err != nil {
 		return fmt.Errorf("failed to update app [%s], error: [%v]", key, err)
 	}
 
+	// 记录事件日志
 	c.recorder.Event(app, corev1.EventTypeNormal, utils.SuccessSynced, utils.MessageResourceSynced)
 
 	return nil
 }
 
+// newDeployment 创建一个deployment对象
 func newDeployment(template appcontrollerv1.DeploymentTemplate, app *appcontrollerv1.App) *appsv1.Deployment {
 	d := &appsv1.Deployment{
 		TypeMeta: metav1.TypeMeta{
@@ -286,11 +311,24 @@ func newDeployment(template appcontrollerv1.DeploymentTemplate, app *appcontroll
 			Name: template.Name,
 		},
 		Spec: appsv1.DeploymentSpec{
+			// Selector 和 pod 的 Labels 必须一致
+			Selector: &metav1.LabelSelector{
+				MatchLabels: map[string]string{
+					"app-key": "app-value",
+				},
+			},
 			Replicas: &template.Replicas,
 			Template: corev1.PodTemplateSpec{
+				// pod 的 labels，没有让用户指定，这里设置成默认的
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{
+						"app-key": "app-value",
+					},
+				},
 				Spec: corev1.PodSpec{
 					Containers: []corev1.Container{
 						{
+							Name:  "app-deploy-container",
 							Image: template.Image,
 						},
 					},
@@ -298,6 +336,7 @@ func newDeployment(template appcontrollerv1.DeploymentTemplate, app *appcontroll
 			},
 		},
 	}
+	// 将 deploy 的 OwnerReferences，设置成app
 	d.OwnerReferences = []metav1.OwnerReference{
 		*metav1.NewControllerRef(app, appcontrollerv1.SchemeGroupVersion.WithKind("App")),
 	}
@@ -312,6 +351,19 @@ func newService(template appcontrollerv1.ServiceTemplate, app *appcontrollerv1.A
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name: template.Name,
+		},
+		Spec: corev1.ServiceSpec{
+			// Selector 和 pod 的 Labels 必须一致
+			Selector: map[string]string{
+				"app-key": "app-value",
+			},
+			Ports: []corev1.ServicePort{
+				{
+					Name: "app-service",
+					// Service的端口，默认设置成了8080。这里仅仅是为了学习crd，实际开发中可以设置到AppSpec中去
+					Port: 8080,
+				},
+			},
 		},
 	}
 

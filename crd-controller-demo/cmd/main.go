@@ -27,8 +27,8 @@ func main() {
 	// set up signals so we handle the first shutdown signal gracefully
 	stopCh := signals.SetupSignalHandler()
 
-	//config, err := clientcmd.BuildConfigFromFlags(masterURL, kubeConfig)
-	config, err := clientcmd.BuildConfigFromFlags("", clientcmd.RecommendedHomeFile)
+	config, err := clientcmd.BuildConfigFromFlags(masterURL, kubeConfig)
+	//config, err := clientcmd.BuildConfigFromFlags("", clientcmd.RecommendedHomeFile)
 	if err != nil {
 		klog.Fatalf("Error building kubeConfig: %s", err.Error())
 	}
