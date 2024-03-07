@@ -2,8 +2,6 @@ module graham924.com/cronJob-operator
 
 go 1.21
 
-toolchain go1.21.1
-
 require (
 	github.com/onsi/ginkgo/v2 v2.14.0
 	github.com/onsi/gomega v1.30.0
