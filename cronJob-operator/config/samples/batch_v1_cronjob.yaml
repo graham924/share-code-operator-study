@@ -9,4 +9,18 @@ metadata:
     app.kubernetes.io/created-by: cronjob-operator
   name: cronjob-sample
 spec:
-  # TODO(user): Add fields here
+  schedule: "*/1 fhdjskhfjks* * * *"
+  startingDeadlineSeconds: 60
+  concurrencyPolicy: Allow
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          containers:
+          - name: hello
+            image: busybox
+            args:
+            - /bin/sh
+            - -c
+            - date; echo Hello from the Kubernetes cluster
+          restartPolicy: OnFailure
