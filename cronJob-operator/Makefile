@@ -1,4 +1,5 @@
-
+# this ensures that we actually generate validation for each version, instead of telling Kubernetes that they’re the same
+CRD_OPTIONS ?= "crd"
 # Image URL to use all building/pushing image targets
 IMG ?= controller:latest
 # ENVTEST_K8S_VERSION refers to the version of kubebuilder assets to be downloaded by envtest binary.
