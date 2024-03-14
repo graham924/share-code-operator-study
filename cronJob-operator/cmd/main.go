@@ -35,6 +35,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 
 	batchv1 "graham924.com/cronJob-operator/api/v1"
+	batchv2 "graham924.com/cronJob-operator/api/v2"
 	"graham924.com/cronJob-operator/internal/controller"
 	//+kubebuilder:scaffold:imports
 )
@@ -48,6 +49,7 @@ func init() {
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
 
 	utilruntime.Must(batchv1.AddToScheme(scheme))
+	utilruntime.Must(batchv2.AddToScheme(scheme))
 	//+kubebuilder:scaffold:scheme
 }
 

@@ -21,4 +21,12 @@ resources:
     defaulting: true
     validation: true
     webhookVersion: v1
+- api:
+    crdVersion: v1
+    namespaced: true
+  domain: graham924.com
+  group: batch
+  kind: CronJob
+  path: graham924.com/cronJob-operator/api/v2
+  version: v2
 version: "3"
