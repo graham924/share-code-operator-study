@@ -1,0 +1,12 @@
+apiVersion: batch.graham924.com/v2
+kind: CronJob
+metadata:
+  labels:
+    app.kubernetes.io/name: cronjob
+    app.kubernetes.io/instance: cronjob-sample
+    app.kubernetes.io/part-of: cronjob-operator
+    app.kubernetes.io/managed-by: kustomize
+    app.kubernetes.io/created-by: cronjob-operator
+  name: cronjob-sample
+spec:
+  # TODO(user): Add fields here
